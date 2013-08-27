@@ -18,13 +18,14 @@ module Transfermarkt
         options[:league_uri] = league_uri
         options[:name] = league_html.xpath('//*[@id="wb_seite"]/table/tr[1]/td[2]/h1/text()').text.strip.gsub(" -","")
         
-        options[:club_uris] = league_html.xpath('//*[@id="vereine"]//td[2]//a').collect{|player_html| player_html.values.first}
+        options[:club_uris] = league_html.xpath('//table[@id="vereine"]//tr//td[2]//a[@class="s10"]').collect{|player_html| player_html["href"]}
 
+        puts "Found #{options[:club_uris].count} clubs"
         options[:clubs] = []
 
         if fetch_clubs
           options[:club_uris].each do |club_uri|
-            options[:clubs] << Transfermarkt::Club.fetch_by_club_uri(club_uri)
+            options[:clubs] << Transfermarkt::Club.fetch_by_club_uri(club_uri, fetch_clubs)
           end
         end
 
