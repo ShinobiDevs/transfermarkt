@@ -1,6 +1,7 @@
 module Transfermarkt
   class Club < Transfermarkt::EntityBase
     attr_accessor :name,
+                :country,
                 :club_uri,
                 :players,
                 :player_uris
@@ -17,8 +18,9 @@ module Transfermarkt
 
         options[:club_uri] = club_uri
         options[:name] = club_html.xpath('//*[@id="vereinsinfo"]').text
-      
-        options[:player_uris] = club_html.xpath('//td[2]//table//tr[1]//td[2]//a').collect{|player_html| player_html.values.first}
+        options[:country] = club_html.xpath('//*[@id="centerbig"]//form//table//tr[1]//td[2]//h1//a[2]').text
+
+        options[:player_uris] = club_html.xpath('//td[2]//table//tr[1]//td[2]//a').collect{|player_html| player_html["href"]}
 
 
         options[:players] = []

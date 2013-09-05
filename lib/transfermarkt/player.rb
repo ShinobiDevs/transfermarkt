@@ -58,7 +58,8 @@ module Transfermarkt
           else
             performance_with_type_uri = performance_uri.gsub(".html", "_#{type}.html")
           end
-          #options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri) 
+          
+          options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri) 
         end
         
         puts "fetched player #{options[:full_name]}"
@@ -66,15 +67,33 @@ module Transfermarkt
         self.new(options.merge(Hash[headers.zip(values)]))
       end
     end
-  private
+  #private
     def self.fetch_performance_data(performance_uri)
       req = self.get("/#{performance_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
       if req.code != 200
         nil
       else
         performance_data = {}
-        profile_html = Nokogiri::HTML(req.parsed_response)
+        performance_html = Nokogiri::HTML(req.parsed_response)
+
+        performance_data[:matches] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[2]').text.to_i
+        performance_data[:goals] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[3]').text.to_i
+        performance_data[:own_goals] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[4]').text.to_i
+        performance_data[:assists] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[5]').text.to_i
+        performance_data[:yellow_cards] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[6]').text.to_i
+        performance_data[:double_yellow_cards] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[7]').text.to_i
+        performance_data[:red_cards] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[8]').text.to_i
+        performance_data[:substituted_on] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[9]').text.to_i
+        performance_data[:substituted_off] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[10]').text.to_i
+        performance_data[:minutes_per_goal] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[11]').text.gsub(".", "").to_i
+        performance_data[:minutes_played] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[12]').text.gsub(".", "").to_i
+
+        # for goal keepers
+        # performance_data[:goals_conceded] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[4]/td[11]').text.to_i
+        # performance_data[:goals_saved] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[4]/td[12]').text.to_i
       end
+
+      return performance_data
     end
   end
 end

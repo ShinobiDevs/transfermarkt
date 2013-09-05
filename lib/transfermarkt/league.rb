@@ -18,7 +18,7 @@ module Transfermarkt
         options[:league_uri] = league_uri
         options[:name] = league_html.xpath('//*[@id="wb_seite"]/table/tr[1]/td[2]/h1/text()').text.strip.gsub(" -","")
         
-        options[:club_uris] = league_html.xpath('//*[@id="vereine"]//td[2]//a').collect{|player_html| player_html.values.first}
+        options[:club_uris] = league_html.xpath('//*[@id="vereine"]//td[2]//a').collect{|player_html| player_html["href"]}
 
         options[:clubs] = []
 
@@ -41,7 +41,7 @@ module Transfermarkt
         nil
       else
         root_html = Nokogiri::HTML(req.parsed_response)
-        league_uris = root_html.xpath('//*[@id="categorymenu"]/li/ul/li[1]/a').collect{|league| league.values.first}
+        league_uris = root_html.xpath('//*[@id="categorymenu"]/li/ul/li[1]/a').collect{|league| league["href"]}
       end
     end
   end
