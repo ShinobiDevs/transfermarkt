@@ -44,7 +44,7 @@ module Transfermarkt
         nil
       else
         root_html = Nokogiri::HTML(req.parsed_response)
-        league_uris = root_html.xpath('//*[@id="categorymenu"]/li/ul/li[1]/a').collect{|league| league["href"]}
+        league_uris = root_html.xpath('//*[@id="categorymenu"]/li/ul/li/a').collect{|league| league["href"]}
       end
     end
   end
