@@ -51,6 +51,8 @@ module Transfermarkt
           perforamnce_types << (Time.now.year - i).to_s
         end
 
+        options = options.merge(Hash[headers.zip(values)])
+
         perforamnce_types.each do |type|
           performance_with_type_uri = ""
           if type == "All"
@@ -58,39 +60,38 @@ module Transfermarkt
           else
             performance_with_type_uri = performance_uri.gsub(".html", "_#{type}.html")
           end
-          
-          options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri) 
+
+          goalkeeper = options[:position] == "Goalkeeper"
+          options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri, goalkeeper) 
         end
         
         puts "fetched player #{options[:full_name]}"
 
-        self.new(options.merge(Hash[headers.zip(values)]))
+        self.new(options)
       end
     end
-  #private
-    def self.fetch_performance_data(performance_uri)
+  private
+    def self.fetch_performance_data(performance_uri, is_goalkeeper = false)
       req = self.get("/#{performance_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
       if req.code != 200
         nil
       else
-        performance_data = {}
+        performance_data = []
         performance_html = Nokogiri::HTML(req.parsed_response)
+        performance_headers = if is_goalkeeper
+          [:competition, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out , :goals_conceded, :saves, :minutes]
+        else
+          [:competition, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out, :minutes_per_goal, :minutes]
+        end
 
-        performance_data[:matches] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[2]').text.to_i
-        performance_data[:goals] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[3]').text.to_i
-        performance_data[:own_goals] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[4]').text.to_i
-        performance_data[:assists] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[5]').text.to_i
-        performance_data[:yellow_cards] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[6]').text.to_i
-        performance_data[:double_yellow_cards] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[7]').text.to_i
-        performance_data[:red_cards] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[8]').text.to_i
-        performance_data[:substituted_on] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[9]').text.to_i
-        performance_data[:substituted_off] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[10]').text.to_i
-        performance_data[:minutes_per_goal] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[11]').text.gsub(".", "").to_i
-        performance_data[:minutes_played] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[last()]/td[12]').text.gsub(".", "").to_i
-
-        # for goal keepers
-        # performance_data[:goals_conceded] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[4]/td[11]').text.to_i
-        # performance_data[:goals_saved] = performance_html.xpath('//*[@id="centerbig"]/table[1]/tr[4]/td[12]').text.to_i
+        performance_html.xpath('//table[@class="standard_tabelle"][1]//tr[position()>1]').each_with_index do |competition|
+          values = Nokogiri::HTML::DocumentFragment.parse(competition.to_html).search("*//td").collect(&:text)
+          if values.first == ""
+            values.delete_at 0
+          end
+          performance_data = Hash[performance_headers.zip(values)]
+        end
+        performance_data
       end
 
       return performance_data

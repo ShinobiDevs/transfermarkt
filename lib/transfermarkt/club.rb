@@ -19,10 +19,9 @@ module Transfermarkt
         options[:club_uri] = club_uri
         options[:name] = club_html.xpath('//*[@id="vereinsinfo"]').text
         options[:country] = club_html.xpath('//*[@id="centerbig"]//form//table//tr[1]//td[2]//h1//a[2]').text
+        options[:player_uris] = club_html.xpath('//table[@id="spieler"]//tr//td//table//tr//td[2]//a[contains(@href,"profil")]').collect{|player_html| player_html["href"]}
 
-        options[:player_uris] = club_html.xpath('//td[2]//table//tr[1]//td[2]//a').collect{|player_html| player_html["href"]}
-
-
+        puts "found #{options[:player_uris].count} players"
         options[:players] = []
 
         if fetch_players
