@@ -12,7 +12,8 @@ module Transfermarkt
                 :market_value, 
                 :nationality, 
                 :position,
-                :performance_data
+                :performance_data,
+                :injuries_data
 
     def initialize(options = {})
       super
@@ -65,6 +66,8 @@ module Transfermarkt
           options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri, goalkeeper) 
         end
         
+        options[:injuries_data] = self.fetch_injuries_data(profile_html)
+
         puts "fetched player #{options[:full_name]}"
 
         self.new(options)
@@ -79,22 +82,33 @@ module Transfermarkt
         performance_data = []
         performance_html = Nokogiri::HTML(req.parsed_response)
         performance_headers = if is_goalkeeper
-          [:competition, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out , :goals_conceded, :saves, :minutes]
+          [:competition, :matches, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out , :goals_conceded, :saves, :minutes]
         else
-          [:competition, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out, :minutes_per_goal, :minutes]
+          [:competition, :matches, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out, :minutes_per_goal, :minutes]
         end
 
-        performance_html.xpath('//table[@class="standard_tabelle"][1]//tr[position()>1]').each_with_index do |competition|
+        performance_html.xpath('//table[@class="standard_tabelle"][1]//tr[position()>1]').each do |competition|
           values = Nokogiri::HTML::DocumentFragment.parse(competition.to_html).search("*//td").collect(&:text)
           if values.first == ""
             values.delete_at 0
           end
-          performance_data = Hash[performance_headers.zip(values)]
+          performance_data << Hash[performance_headers.zip(values)]
         end
         performance_data
       end
 
       return performance_data
+    end
+
+    def self.fetch_injuries_data(player_html)
+      injury_data = []
+      injuries_headers = [:season, :from, :to, :injury]
+
+      player_html.xpath('//*[@id="centerbig"]/div[4]/table[3]//tr[position()>1]').each do |injury_row|
+        values = Nokogiri::HTML::DocumentFragment.parse(injury_row.to_html).search("*//td").collect(&:text)
+        injury_data << Hash[injuries_headers.zip(values)]
+      end
+      injury_data
     end
   end
 end
