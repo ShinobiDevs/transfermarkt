@@ -4,7 +4,30 @@ module Transfermarkt
                 :country,
                 :league_uri,
                 :clubs,
+                :clubs_index
                 :club_uris
+
+    def self.fetch_clubs_and_uris_by_league_uri(league_uri)
+      req = self.get("/#{league_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
+      if req.code != 200
+        nil
+      else
+        league_html = Nokogiri::HTML(req.parsed_response)
+        options = {}
+
+        options[:league_uri] = league_uri
+        options[:name] = league_html.xpath('//*[@id="wb_seite"]/table/tr[1]/td[2]/h1/text()').text.strip.gsub(" -","")
+        options[:country] = league_html.xpath('//*[@id="wb_seite"]/table/tr[1]/td[2]/h1/a').text
+
+        club_uris = league_html.xpath('//table[@id="vereine"]//tr//td[2]//a[@class="s10"]').collect{|player_html| player_html["href"]}
+        club_names = league_html.xpath('//table[@id="vereine"]//tr//td[2]//a[@class="s10"]').collect{|player_html| player_html.text }
+
+        clubs = Hash[club_names.zip(club_uris)]
+        
+        options[:clubs_index] = clubs
+        self.new(options)
+      end
+    end
 
     def self.fetch_by_league_uri(league_uri, fetch_clubs = false)
       puts "fetching league #{league_uri}"
