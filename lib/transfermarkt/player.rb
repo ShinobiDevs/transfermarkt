@@ -46,25 +46,29 @@ module Transfermarkt
         options[:performance_data] = {}
 
         performance_uri = profile_uri.gsub("profil", "leistungsdaten")
-        #perforamnce_types = ["All"]
-        perforamnce_types = []
-        10.times do |i|
-          perforamnce_types << (Time.now.year - i).to_s
-        end
 
         options = options.merge(Hash[headers.zip(values)])
 
-        perforamnce_types.each do |type|
-          performance_with_type_uri = ""
-          if type == "All"
-            performance_with_type_uri = performance_uri.gsub(".html", "_gesamt.html")
-          else
-            performance_with_type_uri = performance_uri.gsub(".html", "_#{type}.html")
+        # If there is a performance data blcok
+        if profile_html.xpath('//*[@id="centerbig"]/div[4]/p[3]/a').any?
+
+          perforamnce_types = []
+          10.times do |i|
+            perforamnce_types << (Time.now.year - i).to_s
           end
 
-          goalkeeper = options[:position] == "Goalkeeper"
-          options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri, goalkeeper) 
-        end
+          perforamnce_types.each do |type|
+            performance_with_type_uri = ""
+            if type == "All"
+              performance_with_type_uri = performance_uri.gsub(".html", "_gesamt.html")
+            else
+              performance_with_type_uri = performance_uri.gsub(".html", "_#{type}.html")
+            end
+
+            goalkeeper = options[:position] == "Goalkeeper"
+            options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri, goalkeeper) 
+          end
+        end        
         
         options[:injuries_data] = self.fetch_injuries_data(profile_html)
 
