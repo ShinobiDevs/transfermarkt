@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Elad Meidar"]
   spec.email         = ["elad@eizesus.com"]
   spec.description   = "Integrate with Transfermarkt"
-  spec.summary       = %q{TODO: Write a gem summary}
+  spec.summary       = "Allows access to transfermarkt data"
   spec.homepage      = ""
   spec.license       = "MIT"
 
