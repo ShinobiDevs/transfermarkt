@@ -8,6 +8,7 @@ module Transfermarkt
   autoload :Player, 'transfermarkt/player'
   autoload :Club, 'transfermarkt/club'
   autoload :League, 'transfermarkt/league'
+  autoload :LiveGame, 'transfermarkt/live_game'
 
   USER_AGENT = "Firefox"
 
