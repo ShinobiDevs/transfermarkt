@@ -13,7 +13,7 @@ module Transfermarkt
   USER_AGENT = "Firefox"
 
   def Transfermarkt.base_uri
-    "http://www.transfermarkt.com/"
+    "http://pipeline.bascout.com/"
   end
 
   def self.test_fetch_league
