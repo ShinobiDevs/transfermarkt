@@ -35,6 +35,7 @@ module Transfermarkt
         options[:club] = profile_html.xpath('//*[@id="centerbig"]//div[1]//div//table//tr[2]//td//a[1]').text
         options[:full_name] = profile_html.xpath('//*[@id="centerbig"]//div[1]//div//table//tr[1]//td[2]//h1').text.gsub(/[\d]/, "").strip
         options[:picture] = profile_html.xpath('//*[@id="centerbig"]//div[1]//table//tr//td[1]//img')[1]["src"]
+        options[:name_in_native_country] = profile_html.xpath("//*[@class='given-name s10']").text
 
         headers = profile_html.xpath('//*[@id="centerbig"]//div[1]//table//tr//td[2]//table//tr//td[1]').collect(&:text)
         headers = headers.collect {|header| header.downcase.gsub(":", "").gsub(" ", "_").gsub("'s", "").to_sym}
@@ -47,7 +48,7 @@ module Transfermarkt
 
         performance_uri = profile_uri.gsub("profil", "leistungsdaten")
 
-        options = options.merge(Hash[headers.zip(values)])
+        options = Hash[headers.zip(values)].merge(options)
 
         # If there is a performance data blcok
         if profile_html.xpath('//*[@id="centerbig"]/div[4]/p[3]/a').any?
