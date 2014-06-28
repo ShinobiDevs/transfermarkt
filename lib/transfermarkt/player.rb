@@ -17,8 +17,17 @@ module Transfermarkt
 
     def initialize(options = {})
       super
-      self.market_value = self.market_value.to_s.gsub(".", "").to_i
+
+      encoding_options = {
+        :invalid           => :replace,  # Replace invalid byte sequences
+        :undef             => :replace,  # Replace anything not defined in ASCII
+        :replace           => '',        # Use a blank for those replacements
+        :universal_newline => true       # Always break lines with \n
+      }
+      self.age = self.age.to_i
+      self.market_value = self.market_value.to_s.gsub(",", "").to_i
       self.height = self.height.to_s.gsub(",", "").to_i
+      self.nationality = self.nationality.to_s.encode(Encoding.find('ASCII'), encoding_options).split("\n").collect(&:strip)
     end
 
     def self.fetch_by_profile_uri(profile_uri = "")
@@ -32,54 +41,54 @@ module Transfermarkt
         options = {}
 
         options[:profile_uri] = profile_uri
-        options[:club] = profile_html.xpath('//*[@id="centerbig"]//div[1]//div//table//tr[2]//td//a[1]').text
-        options[:full_name] = profile_html.xpath('//*[@id="centerbig"]//div[1]//div//table//tr[1]//td[2]//h1').text.gsub(/[\d]/, "").strip
-        options[:picture] = profile_html.xpath('//*[@id="centerbig"]//div[1]//table//tr//td[1]//img')[1]["src"]
-        options[:name_in_native_country] = profile_html.xpath("//*[@class='given-name s10']").text
 
-        headers = profile_html.xpath('//*[@id="centerbig"]//div[1]//table//tr//td[2]//table//tr//td[1]').collect(&:text)
-        headers = headers.collect {|header| header.downcase.gsub(":", "").gsub(" ", "_").gsub("'s", "").to_sym}
+        # //*[@id="main"]/div[7]/div/div/div[2]/div[2]/div[2]/table/tbody/tr[2]/td/a
+        options[:club] = profile_html.xpath('//*[@id="main"]//div[7]//table//tr[2]//td//a').text
+        options[:position] = profile_html.xpath('//*[@id="main"]//div[7]//table[1]//tr[3]//td[1]')[1].text.strip
+        options[:full_name] = profile_html.xpath('//*[@class="spielername-profil"]').text.gsub(/[\d]/, "").strip
 
-        values = profile_html.xpath('//*[@id="centerbig"]//div[1]//table//tr//td[2]//table//tr//td[2]').collect(&:text)
-        values = values.collect {|value| value.strip.match(/[A-Za-z0-9,. -]*/)[0] }
+        options[:picture] = profile_html.xpath('//*[@id="main"]//div[7]//div//div//div[2]//div[1]//img')[0]["src"]
+        options[:name_in_native_country] = profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[2]//div[1]//div//table//tr[1]//td[1]')[0].text
 
+        options[:market_value] = profile_html.xpath('//*[@id="main"]//div[7]//div//div//div[2]//div[3]//span//a').text.gsub(",", ".")
+        
+        if options[:market_value].include?("Mil")
+           options[:market_value] = options[:market_value].to_f * 1_000_000
+        else
+          options[:market_value] = options[:market_value].to_f * 100_000
+        end
+        info_values = profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[2]//div[1]//div//table//tr//td').collect(&:text).collect(&:strip)
+        info_headers = [:name_in_native_country, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
+
+        
+        player_info = Hash[info_headers.zip(info_values.slice(0..info_headers.size))]
+        
         # get player performance
         options[:performance_data] = {}
 
-        performance_uri = profile_uri.gsub("profil", "leistungsdaten")
+        performance_uri = profile_uri.gsub("profil", "leistungsdaten") + "/saison/"
 
-        options = Hash[headers.zip(values)].merge(options)
+        years = (Time.now.year - 6..Time.now.year - 1).to_a
 
-        # If there is a performance data blcok
-        if profile_html.xpath('//*[@id="centerbig"]/div[4]/p[3]/a').any?
+        years.each do |year|
+          goalkeeper = options[:position] == "Goalkeeper"
+          options[:performance_data][year.to_s] = self.fetch_performance_data(performance_uri + year.to_s, goalkeeper) 
+        end
 
-          perforamnce_types = []
-          10.times do |i|
-            perforamnce_types << (Time.now.year - i).to_s
-          end
-
-          perforamnce_types.each do |type|
-            performance_with_type_uri = ""
-            if type == "All"
-              performance_with_type_uri = performance_uri.gsub(".html", "_gesamt.html")
-            else
-              performance_with_type_uri = performance_uri.gsub(".html", "_#{type}.html")
-            end
-
-            goalkeeper = options[:position] == "Goalkeeper"
-            options[:performance_data][type] = self.fetch_performance_data(performance_with_type_uri, goalkeeper) 
-          end
-        end        
+        # Get injury data
         
-        options[:injuries_data] = self.fetch_injuries_data(profile_html)
+        injury_uri = profile_uri.gsub("profil", "verletzungen")
+
+        options[:injuries_data] = self.fetch_injuries_data(injury_uri)
 
         puts "fetched player #{options[:full_name]}"
 
-        self.new(options)
+        self.new(player_info.merge(options))
       end
     end
   private
     def self.fetch_performance_data(performance_uri, is_goalkeeper = false)
+      puts "Fetching Performance page for #{performance_uri}"
       req = self.get("/#{performance_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
       if req.code != 200
         nil
@@ -89,31 +98,42 @@ module Transfermarkt
         performance_headers = if is_goalkeeper
           [:competition, :matches, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out , :goals_conceded, :saves, :minutes]
         else
-          [:competition, :matches, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out, :minutes_per_goal, :minutes]
+          [:competition, :matches, :goals, :assists, :yellow_cards, :second_yellows, :red_cards, :minutes]
         end
 
-        performance_html.xpath('//table[@class="standard_tabelle"][1]//tr[position()>1]').each do |competition|
+        performance_html.xpath('//*[@id="yw2"]//table//tr[position()>1]').each do |competition|
           values = Nokogiri::HTML::DocumentFragment.parse(competition.to_html).search("*//td").collect(&:text)
           if values.first == ""
             values.delete_at 0
           end
-          performance_data << Hash[performance_headers.zip(values)]
+          competition_performance = Hash[performance_headers.zip(values)]
+          competition_performance[:minutes] = competition_performance[:minutes].gsub(".", "").to_i 
+          performance_data << competition_performance
         end
-        performance_data
       end
 
       return performance_data
     end
 
-    def self.fetch_injuries_data(player_html)
-      injury_data = []
-      injuries_headers = [:season, :from, :to, :injury]
+    def self.fetch_injuries_data(injury_uri)
+      req = self.get("/#{injury_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
+      if req.code != 200
+        []
+      else
+        injury_data = []
+        player_html = Nokogiri::HTML(req.parsed_response)
+        injuries_headers = [:season, :injury, :from, :to, :days_out, :games_missed]
 
-      player_html.xpath('//*[@id="centerbig"]/div[4]/table[3]//tr[position()>1]').each do |injury_row|
-        values = Nokogiri::HTML::DocumentFragment.parse(injury_row.to_html).search("*//td").collect(&:text)
-        injury_data << Hash[injuries_headers.zip(values)]
+        player_html.xpath('//*[@id="yw1"]//table//tr[position()>1]').each do |injury_row|
+          values = Nokogiri::HTML::DocumentFragment.parse(injury_row.to_html).search("*//td").collect(&:text)
+          injury_details = Hash[injuries_headers.zip(values)]
+          injury_details[:days_out] = injury_details[:days_out].strip.to_i
+          injury_details[:games_missed] = injury_details[:games_missed].strip.to_i 
+          injury_data << injury_details
+        end
+        puts injury_data.inspect
+        injury_data
       end
-      injury_data
     end
   end
 end
