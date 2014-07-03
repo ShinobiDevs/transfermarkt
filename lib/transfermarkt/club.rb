@@ -9,7 +9,7 @@ module Transfermarkt
     def self.fetch_by_club_uri(club_uri, fetch_players = false)
       puts "fetching club #{club_uri}"
 
-      req = self.get("/#{club_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
+      req = self.get("/#{club_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         nil
       else

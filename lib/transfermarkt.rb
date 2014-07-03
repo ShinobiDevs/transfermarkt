@@ -3,6 +3,7 @@ require "transfermarkt/version"
 module Transfermarkt
   require 'httparty'
   require 'nokogiri'
+  require 'useragents'
 
   autoload :EntityBase, 'transfermarkt/entity_base'
   autoload :Player, 'transfermarkt/player'

@@ -5,7 +5,7 @@ module Transfermarkt
     URL = "http://www.transfermarkt.com/en/livescores-und-livetabellen/uebersicht/livescores.html"
 
     def self.fetch
-      req = self.get(URL, headers: {"User-Agent" => Transfermarkt::USER_AGENT})
+      req = self.get(URL, headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         nil
       else

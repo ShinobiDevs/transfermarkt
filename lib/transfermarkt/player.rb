@@ -33,7 +33,7 @@ module Transfermarkt
     def self.fetch_by_profile_uri(profile_uri = "")
       puts "fetching player profile #{profile_uri}"
 
-      req = self.get("/#{profile_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
+      req = self.get("/#{profile_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         nil
       else
@@ -89,7 +89,7 @@ module Transfermarkt
   private
     def self.fetch_performance_data(performance_uri, is_goalkeeper = false)
       puts "Fetching Performance page for #{performance_uri}"
-      req = self.get("/#{performance_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
+      req = self.get("/#{performance_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         nil
       else
@@ -116,7 +116,7 @@ module Transfermarkt
     end
 
     def self.fetch_injuries_data(injury_uri)
-      req = self.get("/#{injury_uri}", headers: {"User-Agent" => Transfermarkt::USER_AGENT})
+      req = self.get("/#{injury_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         []
       else
