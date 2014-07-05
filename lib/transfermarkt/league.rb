@@ -61,14 +61,42 @@ module Transfermarkt
     end
 
     def self.fetch_league_uris
-      root_uri = "/en/ligat-haal/startseite/wettbewerb_ISR1.html"
-      req = self.get("/#{root_uri}", headers: {"User-Agent" => UserAgents.rand()})
+      competition_uris = ["/wettbewerbe/europa", 
+                          "/wettbewerbe/asien",
+                          "/wettbewerbe/amerika",
+                          "/wettbewerbe/afrika"]
+      all_leagues = []
+      competition_uris.each do |competition_uri|
+        all_leagues << Transfermarkt::League.fetch_competition_leagues(competition_uri)
+      end
+
+      all_leagues.flatten
+    end
+
+    def self.fetch_competition_leagues(competition_uri)
+      puts "Fetching #{competition_uri}"
+      req = self.get(competition_uri, headers: {"User-Agent" => UserAgents.rand()})
+      league_uris = []
       if req.code != 200
-        nil
+        []
       else
-        root_html = Nokogiri::HTML(req.parsed_response)
-        league_uris = root_html.xpath('//*[@id="yw1"]//table//tr//td[2]//a[1]').collect{|player_html| player_html["href"]}
+        competition_html = Nokogiri::HTML(req.parsed_response)
+        league_uris << competition_html.xpath('//*[@id="yw1"]//table[@class="items"]//tr//td[2]//a').collect {|league| league["href"] }
+        
+        next_page_link = competition_html.xpath('//*[@id="yw2"]//li[@class="naechste-seite"]//a')[0]
+        if next_page_link
+          league_uris << Transfermarkt::League.fetch_competition_leagues(next_page_link["href"])
+        else
+          league_uris.flatten
+        end
+
+        league_uris.flatten
       end
     end
   end
 end
+
+
+
+
+
