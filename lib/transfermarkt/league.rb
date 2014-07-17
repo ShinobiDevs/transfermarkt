@@ -17,9 +17,8 @@ module Transfermarkt
 
         options[:league_uri] = league_uri
         options[:name] = league_html.xpath('//select[@id="wettbewerb_select_breadcrumb"]//option[@selected="selected"]')[0].text
-        if options[:name].blank?
+        if options[:name].nil?
           options[:name] = league_html.xpath('//select[@class="spielername-profil"]').text.squish
-          puts "#{options[:name]}"
         end
         options[:country] = league_html.xpath('//select[@id="land_select_breadcrumb"]//option[@selected="selected"]').text
 
