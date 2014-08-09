@@ -7,10 +7,13 @@ module Transfermarkt
                 :clubs_index
                 :club_uris
 
+    def valid_league?
+    end
+    
     def self.fetch_clubs_and_uris_by_league_uri(league_uri)
       req = self.get("/#{league_uri}", headers: {"User-Agent" => ::UserAgents.rand()})
       if req.code != 200
-        nil
+        raise req.code.to_s
       else
         league_html = Nokogiri::HTML(req.parsed_response)
         if league_html.xpath('//table[@class="profilheader"]//tr[1]//th[1]')[0].text == "Type of cup:"
@@ -95,7 +98,10 @@ module Transfermarkt
 
         next_page_link = competition_html.xpath('//*[@id="yw2"]//li[@class="naechste-seite"]//a')[0]
         if next_page_link
-          league_uris << Transfermarkt::League.fetch_competition_leagues(next_page_link["href"])
+          link = next_page_link["href"].split("?").first
+          
+          page = next_page_link["href"].scan(/page=(\d)/).flatten.first
+          league_uris << Transfermarkt::League.fetch_competition_leagues(link + "?page=#{page}")
         else
           league_uris.flatten
         end
