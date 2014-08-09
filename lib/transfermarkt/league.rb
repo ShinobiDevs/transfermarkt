@@ -7,6 +7,9 @@ module Transfermarkt
                 :clubs_index
                 :club_uris
 
+    def valid_league?
+    end
+    
     def self.fetch_clubs_and_uris_by_league_uri(league_uri)
       req = self.get("/#{league_uri}", headers: {"User-Agent" => ::UserAgents.rand()})
       if req.code != 200

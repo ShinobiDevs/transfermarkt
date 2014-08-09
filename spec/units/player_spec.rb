@@ -17,6 +17,6 @@ describe Transfermarkt::Player do
     expect(@messi.height).to eq(169)
     expect(@messi.club).to eq("FC Barcelona")
     expect(@messi.market_value).to eq(105_600_000)
-    expect(@messi.position).to eq("Centre Forward")
+    expect(@messi.position).to eq("Striker - Centre Forward")
   end
 end
