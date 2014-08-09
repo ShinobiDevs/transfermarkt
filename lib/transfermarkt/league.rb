@@ -16,17 +16,19 @@ module Transfermarkt
         options = {}
 
         options[:league_uri] = league_uri
-        options[:name] = league_html.xpath('//select[@id="wettbewerb_select_breadcrumb"]//option[@selected="selected"]')[0].text
-        if options[:name].nil?
-          options[:name] = league_html.xpath('//select[@class="spielername-profil"]').text.squish
+        league_name = league_html.xpath('//select[@id="wettbewerb_select_breadcrumb"]//option[@selected="selected"]')
+        if league_name.empty?
+          options[:name] = league_html.xpath('//div[@class="spielername-profil"]').text.strip
+          options[:country] = league_html.xpath('//table[@class="profilheader"]//img/@title').first.value
+        else
+          options[:name] = league_name[0].text
+          options[:country] = league_html.xpath('//select[@id="land_select_breadcrumb"]//option[@selected="selected"]').text
         end
-        options[:country] = league_html.xpath('//select[@id="land_select_breadcrumb"]//option[@selected="selected"]').text
-
         club_uris = league_html.xpath('//*[@id="yw1"]//table//tr//td[2]//a[1]').collect{|player_html| player_html["href"]}
         club_names = league_html.xpath('//*[@id="yw1"]//table//tr//td[2]//a[1]').collect{|player_html| player_html.text }
 
         clubs = Hash[club_names.zip(club_uris)]
-        
+
         options[:clubs_index] = clubs
         self.new(options)
       end
@@ -64,10 +66,11 @@ module Transfermarkt
     end
 
     def self.fetch_league_uris
-      competition_uris = ["/wettbewerbe/europa", 
+      competition_uris = ["/wettbewerbe/europa",
                           "/wettbewerbe/asien",
                           "/wettbewerbe/amerika",
                           "/wettbewerbe/afrika"]
+
       all_leagues = []
       competition_uris.each do |competition_uri|
         all_leagues << Transfermarkt::League.fetch_competition_leagues(competition_uri)
@@ -85,7 +88,7 @@ module Transfermarkt
       else
         competition_html = Nokogiri::HTML(req.parsed_response)
         league_uris << competition_html.xpath('//*[@id="yw1"]//table[@class="items"]//tr//td[2]//a').collect {|league| league["href"] }
-        
+
         next_page_link = competition_html.xpath('//*[@id="yw2"]//li[@class="naechste-seite"]//a')[0]
         if next_page_link
           league_uris << Transfermarkt::League.fetch_competition_leagues(next_page_link["href"])
