@@ -31,9 +31,15 @@ module Transfermarkt
       self.nationality = self.nationality.to_s.encode(Encoding.find('ASCII'), encoding_options).split("\n").collect(&:strip)
     end
 
-    def self.fetch_by_profile_uri(profile_uri = "")
-      puts "fetching player profile #{profile_uri}"
+    def valid_player?
+      if club.nil? or club.empty?
+        false
+      else
+        true
+      end
+    end
 
+    def self.fetch_by_profile_uri(profile_uri = "")
       req = self.get("/#{profile_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         nil
@@ -41,64 +47,70 @@ module Transfermarkt
         profile_html = Nokogiri::HTML(req.parsed_response)
         options = {}
 
+        puts "**** Parsing player #{profile_uri}"
+
         options[:profile_uri] = profile_uri
 
         # //*[@id="main"]/div[7]/div/div/div[2]/div[2]/div[2]/table/tbody/tr[2]/td/a
-        options[:club] = profile_html.xpath('//*[@id="main"]//div[7]//table//tr[2]//td//a').text
-        # options[:position] = profile_html.xpath('//*[@id="main"]//div[7]//table[1]//tr[3]//td[1]')[1].text.strip
-        options[:full_name] = profile_html.xpath('//*[@class="spielername-profil"]').text.gsub(/[\d]/, "").strip
+        club = profile_html.xpath('//*[@id="main"]//div[7]//table//tr[2]//td[1]//a')
+        unless club.empty?
+          options[:club] = profile_html.xpath('//*[@id="main"]//div[7]//table//tr[2]//td[1]//a').text
 
-        options[:picture] = profile_html.xpath('//*[@id="main"]//div[7]//div//div//div[2]//div[1]//img')[0]["src"]
-        # options[:name_in_native_country] = profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[2]//div[1]//div//table//tr[1]//td[1]')[0].text
+          # options[:position] = profile_html.xpath('//*[@id="main"]//div[7]//table[1]//tr[3]//td[1]')[1].text.strip
+          options[:full_name] = profile_html.xpath('//*[@class="spielername-profil"]').text.gsub(/[\d]/, "").strip
 
-        options[:market_value] = profile_html.xpath('//*[@id="main"]//div[7]//div//div//div[2]//div[3]//span//a').text.gsub(",", ".")
+          options[:picture] = profile_html.xpath('//*[@id="main"]//div[7]//div//div//div[2]//div[1]//img')[0]["src"]
 
-        if options[:market_value].include?("Mil")
-           options[:market_value] = options[:market_value].to_f * 1_000_000
+          # options[:name_in_native_country] = profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[2]//div[1]//div//table//tr[1]//td[1]')[0].text
+
+          options[:market_value] = profile_html.xpath('//*[@id="main"]//div[7]//div//div//div[2]//div[3]//span//a').text.gsub(",", ".")
+
+          if options[:market_value].include?("Mil")
+             options[:market_value] = options[:market_value].to_f * 1_000_000
+          else
+            options[:market_value] = options[:market_value].to_f * 100_000
+          end
+          info_values = profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table//tr//td').collect(&:text).collect(&:strip)
+
+          if profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[1]//th').text == "Date of birth:"
+            info_headers = [:date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
+            options[:name_in_native_country] = options[:full_name]
+            options[:complete_name] = options[:full_name]
+          elsif profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[2]//th').text == "Complete name:"
+            info_headers = [:name_in_native_country, :complete_name, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
+          else
+            info_headers = [:name_in_native_country, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
+            options[:complete_name] = options[:full_name]
+          end
+
+          player_info = Hash[info_headers.zip(info_values.slice(0..info_headers.size))]
+
+          # get player performance
+          options[:performance_data] = {}
+
+          performance_uri = profile_uri.gsub("profil", "leistungsdaten") + "/saison/"
+
+          years = (Time.now.year - 6..Time.now.year - 1).to_a
+
+          years.each do |year|
+            goalkeeper = options[:position] == "Goalkeeper"
+            options[:performance_data][year.to_s] = self.fetch_performance_data(performance_uri + year.to_s, year.to_s, goalkeeper)
+          end
+
+          # Get injury data
+
+          injury_uri = profile_uri.gsub("profil", "verletzungen")
+
+          options[:injuries_data] = self.fetch_injuries_data(injury_uri)
+
+          self.new(player_info.merge(options))
         else
-          options[:market_value] = options[:market_value].to_f * 100_000
+          self.new(options)
         end
-        info_values = profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table//tr//td').collect(&:text).collect(&:strip)
-
-        if profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[1]//th').text == "Date of birth:"
-          info_headers = [:date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
-          options[:name_in_native_country] = options[:full_name]
-          options[:complete_name] = options[:full_name]
-        elsif profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[2]//th').text == "Complete name:"
-          info_headers = [:name_in_native_country, :complete_name, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
-        else
-          info_headers = [:name_in_native_country, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
-          options[:complete_name] = options[:full_name]
-        end
-
-        player_info = Hash[info_headers.zip(info_values.slice(0..info_headers.size))]
-
-        # get player performance
-        options[:performance_data] = {}
-
-        performance_uri = profile_uri.gsub("profil", "leistungsdaten") + "/saison/"
-
-        years = (Time.now.year - 6..Time.now.year - 1).to_a
-
-        years.each do |year|
-          goalkeeper = options[:position] == "Goalkeeper"
-          options[:performance_data][year.to_s] = self.fetch_performance_data(performance_uri + year.to_s, year.to_s, goalkeeper)
-        end
-
-        # Get injury data
-
-        injury_uri = profile_uri.gsub("profil", "verletzungen")
-
-        options[:injuries_data] = self.fetch_injuries_data(injury_uri)
-
-        puts "fetched player #{options[:full_name]}"
-
-        self.new(player_info.merge(options))
       end
     end
   private
     def self.fetch_performance_data(performance_uri, year, is_goalkeeper = false)
-      puts "Fetching Performance page for #{performance_uri}"
       req = self.get("/#{performance_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         nil
@@ -122,7 +134,6 @@ module Transfermarkt
           performance_data << competition_performance
         end
       end
-
       return performance_data
     end
 
@@ -142,7 +153,6 @@ module Transfermarkt
           injury_details[:games_missed] = injury_details[:games_missed].strip.to_i
           injury_data << injury_details
         end
-        puts injury_data.inspect
         injury_data
       end
     end

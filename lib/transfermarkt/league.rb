@@ -8,12 +8,10 @@ module Transfermarkt
                 :club_uris
 
     def valid_league?
-      req = Transfermarkt::EntityBase.get("/#{self.league_uri}", headers: {"User-Agent" => ::UserAgents.rand()})
-      if req.code != 200
-        raise req.code.to_s
+      if name.nil? or name.empty?
+        false
       else
-        league_html = Nokogiri::HTML(req.parsed_response)
-        league_html.xpath('//table[@class="profilheader"]//tr[1]//th[1]')[0].text != "Type of cup:"
+        true
       end
     end
 
@@ -24,22 +22,26 @@ module Transfermarkt
       else
         league_html = Nokogiri::HTML(req.parsed_response)
         options = {}
-
+        puts "**** Parsing league #{league_uri}"
         options[:league_uri] = league_uri
-        league_name = league_html.xpath('//select[@id="wettbewerb_select_breadcrumb"]//option[@selected="selected"]')
-        if league_name.empty?
-          options[:name] = league_html.xpath('//div[@class="spielername-profil"]').text.strip
-          options[:country] = league_html.xpath('//table[@class="profilheader"]//img/@title').first.value
-        else
-          options[:name] = league_name[0].text
-          options[:country] = league_html.xpath('//select[@id="land_select_breadcrumb"]//option[@selected="selected"]').text
+        unless league_html.xpath('//table[@class="profilheader"]//tr[1]//th[1]')[0].text == "Type of cup:"
+          league_name = league_html.xpath('//select[@id="wettbewerb_select_breadcrumb"]//option[@selected="selected"]')
+          if league_name.empty?
+            options[:name] = league_html.xpath('//div[@class="spielername-profil"]').text.strip
+            options[:country] = league_html.xpath('//table[@class="profilheader"]//img/@title').first.value
+          else
+            options[:name] = league_name[0].text
+            options[:country] = league_html.xpath('//select[@id="land_select_breadcrumb"]//option[@selected="selected"]').text
+          end
+          club_uris = league_html.xpath('//*[@id="yw1"]//table//tr//td[2]//a[1]').collect{|player_html| player_html["href"]}
+          club_names = league_html.xpath('//*[@id="yw1"]//table//tr//td[2]//a[1]').collect{|player_html| player_html.text }
+
+          clubs = Hash[club_names.zip(club_uris)]
+
+          options[:clubs_index] = clubs
+
+          puts "**** Finish parsing #{league_uri}"
         end
-        club_uris = league_html.xpath('//*[@id="yw1"]//table//tr//td[2]//a[1]').collect{|player_html| player_html["href"]}
-        club_names = league_html.xpath('//*[@id="yw1"]//table//tr//td[2]//a[1]').collect{|player_html| player_html.text }
-
-        clubs = Hash[club_names.zip(club_uris)]
-
-        options[:clubs_index] = clubs
         self.new(options)
       end
     end
