@@ -78,6 +78,10 @@ module Transfermarkt
             options[:complete_name] = options[:full_name]
           elsif profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[2]//th').text == "Complete name:"
             info_headers = [:name_in_native_country, :complete_name, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
+          elsif profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[1]//th').text == "Nationality:"
+            info_headers = [:nationality, :position]
+            options[:name_in_native_country] = options[:full_name]
+            options[:complete_name] = options[:full_name]
           else
             info_headers = [:name_in_native_country, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
             options[:complete_name] = options[:full_name]
