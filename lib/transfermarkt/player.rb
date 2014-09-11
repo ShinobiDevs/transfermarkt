@@ -94,7 +94,7 @@ module Transfermarkt
 
           performance_uri = profile_uri.gsub("profil", "leistungsdaten") + "/saison/"
 
-          years = (Time.now.year - 6..Time.now.year - 1).to_a
+          years = (Time.now.year - 6..Time.now.year).to_a
 
           years.each do |year|
             goalkeeper = options[:position] == "Goalkeeper"
