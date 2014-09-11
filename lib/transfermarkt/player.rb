@@ -127,7 +127,7 @@ module Transfermarkt
           [:competition, :appearances, :goals, :assists, :yellow_cards, :second_yellows, :red_cards, :minutes]
         end
 
-        performance_html.xpath('//*[@id="yw2"]//table//tr[position()>1]').each do |competition|
+        performance_html.xpath('//*[@id="yw2"]//table//tbody//tr[position()>0]').each do |competition|
           values = Nokogiri::HTML::DocumentFragment.parse(competition.to_html).search("*//td").collect(&:text)
           if values.first == ""
             values.delete_at 0
