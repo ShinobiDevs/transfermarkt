@@ -14,7 +14,8 @@ module Transfermarkt
                 :nationality,
                 :position,
                 :performance_data,
-                :injuries_data
+                :injuries_data,
+                :player_agent
 
     def initialize(options = {})
       super
@@ -65,6 +66,11 @@ module Transfermarkt
 
           options[:market_value] = profile_html.xpath('//*[@id="main"]//div[7]//div//div//div[2]//div[3]//span//a').text.gsub(",", ".")
 
+          agent = profile_html.xpath('//*[@id="main"]//div[7]//div[1]//div[1]//div[2]//div[2]//div[2]//table//tr[4]//td')
+          unless agent.empty?
+            options[:player_agent] = agent.text.gsub(/[\d]/, "").strip
+          end
+
           if options[:market_value].include?("Mil")
              options[:market_value] = options[:market_value].to_f * 1_000_000
           else
@@ -95,10 +101,9 @@ module Transfermarkt
           performance_uri = profile_uri.gsub("profil", "leistungsdaten") + "/saison/"
 
           years = (Time.now.year - 6..Time.now.year).to_a
-
           years.each do |year|
-            goalkeeper = options[:position] == "Goalkeeper"
-            options[:performance_data][year.to_s] = self.fetch_performance_data(performance_uri + year.to_s, year.to_s, goalkeeper)
+            goalkeeper = player_info[:position] == "Goalkeeper"
+            options[:performance_data][year.to_s] = self.fetch_performance_data(performance_uri + year.to_s, goalkeeper)
           end
 
           # Get injury data
@@ -114,7 +119,7 @@ module Transfermarkt
       end
     end
   private
-    def self.fetch_performance_data(performance_uri, year, is_goalkeeper = false)
+    def self.fetch_performance_data(performance_uri, is_goalkeeper = false)
       req = self.get("/#{performance_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
         nil
@@ -122,19 +127,27 @@ module Transfermarkt
         performance_data = []
         performance_html = Nokogiri::HTML(req.parsed_response)
         performance_headers = if is_goalkeeper
-          [:competition, :appearances, :goals, :own_goals, :assists, :yellow_cards, :second_yellows, :red_cards, :substituted_in, :substituted_out , :goals_conceded, :saves, :minutes]
+          [:competition, :blank, :appearances, :goals, :yellow_cards, :second_yellows, :red_cards, :goals_conceded, :games_without_conceded_goals, :minutes]
         else
-          [:competition, :appearances, :goals, :assists, :yellow_cards, :second_yellows, :red_cards, :minutes]
+          [:competition, :blank, :appearances, :goals, :assists, :yellow_cards, :second_yellows, :red_cards, :minutes]
         end
-
-        performance_html.xpath('//*[@id="yw2"]//table//tbody//tr[position()>0]').each do |competition|
+        # performance_html.xpath('//*[@id="yw2"]//table//tbody//tr[position()>0]').each do |competition|
+        #   values = Nokogiri::HTML::DocumentFragment.parse(competition.to_html).search("*//td").collect(&:text)
+        #   if values.first == ""
+        #     values.delete_at 0
+        #   end
+        #   competition_performance = Hash[performance_headers.zip(values)]
+        #   competition_performance[:minutes] = competition_performance[:minutes].gsub(".", "").to_i
+        #   performance_data << competition_performance
+        # end
+        performance_html.xpath('//*[@id="yw2"]//table//tfoot//tr[position()>0]').each do |competition|
           values = Nokogiri::HTML::DocumentFragment.parse(competition.to_html).search("*//td").collect(&:text)
           if values.first == ""
             values.delete_at 0
           end
           competition_performance = Hash[performance_headers.zip(values)]
           competition_performance[:minutes] = competition_performance[:minutes].gsub(".", "").to_i
-          competition_performance[:year] = year
+          competition_performance.delete(:blank)
           performance_data << competition_performance
         end
       end
