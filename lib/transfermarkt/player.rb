@@ -76,24 +76,33 @@ module Transfermarkt
           else
             options[:market_value] = options[:market_value].to_f * 100_000
           end
-          info_values = profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table//tr//td').collect(&:text).collect(&:strip)
 
-          if profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[1]//th').text == "Date of birth:"
-            info_headers = [:date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
-            options[:name_in_native_country] = options[:full_name]
-            options[:complete_name] = options[:full_name]
-          elsif profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[2]//th').text == "Complete name:"
-            info_headers = [:name_in_native_country, :complete_name, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
-          elsif profile_html.xpath('//*[@id="main"]//div[9]//div[1]//div[2]//div[1]//div[1]//table[1]//tr[1]//th').text == "Nationality:"
-            info_headers = [:nationality, :position]
-            options[:name_in_native_country] = options[:full_name]
-            options[:complete_name] = options[:full_name]
-          else
-            info_headers = [:name_in_native_country, :date_of_birth, :place_of_birth, :age, :height, :nationality, :position, :foot]
-            options[:complete_name] = options[:full_name]
+          options[:name_in_native_country] = options[:full_name]
+          options[:complete_name] = options[:full_name]
+
+          player_info = profile_html.xpath('//div[@class="spielerdaten"]//table[1]//tr')
+          player_info.each do |info_row|
+            header = info_row.search('th')[0].text
+            if header == "Name in home country:"
+              options[:name_in_native_country] = info_row.search('td')[0].text.strip
+            elsif header == "Date of birth:"
+              options[:date_of_birth] = info_row.search('td')[0].text.strip
+            elsif header == "Place of birth:"
+              options[:place_of_birth] = info_row.search('td')[0].text.strip
+            elsif header == "Age:"
+              options[:age] = info_row.search('td')[0].text.strip
+            elsif header == "Height:"
+              options[:height] = info_row.search('td')[0].text.strip
+            elsif header == "Nationality:"
+              options[:nationality] = info_row.search('td')[0].text.strip
+            elsif header == "Position:"
+              options[:position] = info_row.search('td')[0].text.strip
+            elsif header == "Foot:"
+              options[:foot] = info_row.search('td')[0].text.strip
+            elsif header == "Complete name:"
+              options[:complete_name] = info_row.search('td')[0].text.strip
+            end
           end
-
-          player_info = Hash[info_headers.zip(info_values.slice(0..info_headers.size))]
 
           # get player performance
           options[:performance_data] = {}
@@ -102,7 +111,7 @@ module Transfermarkt
 
           years = (Time.now.year - 6..Time.now.year).to_a
           years.each do |year|
-            goalkeeper = player_info[:position] == "Goalkeeper"
+            goalkeeper = options[:position] == "Goalkeeper"
             options[:performance_data][year.to_s] = self.fetch_performance_data(performance_uri + year.to_s, goalkeeper)
           end
 
@@ -111,11 +120,9 @@ module Transfermarkt
           injury_uri = profile_uri.gsub("profil", "verletzungen")
 
           options[:injuries_data] = self.fetch_injuries_data(injury_uri)
-
-          self.new(player_info.merge(options))
-        else
-          self.new(options)
         end
+
+        self.new(options)
       end
     end
   private
