@@ -50,7 +50,7 @@ module Transfermarkt
       else
         profile_html = Nokogiri::HTML(req.parsed_response)
         results = {}
-        
+
         link = profile_html.css(".spielprofil_tooltip")[0]["href"]
         self.fetch_by_profile_uri(link)
       end
@@ -65,7 +65,7 @@ module Transfermarkt
         profile_html = Nokogiri::HTML(req.parsed_response)
         options = {}
 
-        puts "**** Parsing player #{profile_uri}"
+        # puts "**** Parsing player #{profile_uri}"
 
         options[:profile_uri] = profile_uri
 
@@ -102,31 +102,31 @@ module Transfermarkt
             header = info_row.search('th')[0].text.strip
             if header == "Name in home country:"
               options[:name_in_native_country] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             elsif header == "Date of birth:"
               options[:date_of_birth] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             elsif header == "Place of birth:"
               options[:place_of_birth] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             # elsif header == "Age:"
             #   options[:age] = info_row.search('td')[0].text.strip
-            #   puts options
+            #   # puts options
             elsif header == "Height:"
               options[:height] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             elsif header == "Nationality:"
               options[:nationality] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             elsif header == "Position:"
               options[:position] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             elsif header == "Foot:"
               options[:foot] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             elsif header == "Complete name:"
               options[:complete_name] = info_row.search('td')[0].text.strip
-              puts options
+              # puts options
             end
           end
 
