@@ -27,9 +27,9 @@ module Transfermarkt
         :UNIVERSAL_NEWLINE_DECORATOR => true       # Always break lines with \n
       }
       self.age = self.age.to_i
-      self.market_value = #self.market_value.to_s.gsub(",", "").to_i
+      #self.market_value = #self.market_value.to_s.gsub(",", "").to_i
       self.height = self.height.to_s.gsub(",", "").to_i
-      self.nationality = self.nationality.to_s.encode(Encoding.find('ASCII'), encoding_options).split("\n").collect(&:strip)
+      self.nationality = self.nationality.to_s.encode(Encoding.find('ASCII'), encoding_options).split("\t").collect(&:strip)
       if self.date_of_birth.present?
         self.age = Date.today.year - Date.parse(self.date_of_birth).year
       end
