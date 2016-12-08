@@ -1,5 +1,6 @@
 require "transfermarkt/version"
-
+require 'byebug'
+require 'active_support/core_ext/hash'
 module Transfermarkt
   require 'httparty'
   require 'nokogiri'
@@ -14,8 +15,7 @@ module Transfermarkt
   USER_AGENT = "Firefox"
 
   def Transfermarkt.base_uri
-    "http://pipeline.bascout.com/"
-    #{}"http://transfermarkt.co.uk"
+    "http://transfermarkt.co.uk"
   end
 
   def self.test_fetch_league
