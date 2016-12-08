@@ -43,6 +43,19 @@ module Transfermarkt
       end
     end
 
+    def self.search(player_name)
+      req = self.get("/schnellsuche/ergebnis/schnellsuche", query: {query: player_name, x: 0, y:0})
+      if req.code != 200
+        nil
+      else
+        profile_html = Nokogiri::HTML(req.parsed_response)
+        results = {}
+        
+        link = profile_html.css(".spielprofil_tooltip")[0]["href"]
+        self.fetch_by_profile_uri(link)
+      end
+    end
+
     def self.fetch_by_profile_uri(profile_uri = "")
       req = self.get("/#{profile_uri}", headers: {"User-Agent" => UserAgents.rand()})
       if req.code != 200
