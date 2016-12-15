@@ -1,5 +1,4 @@
 require "transfermarkt/version"
-require 'byebug'
 require 'active_support/core_ext/hash'
 module Transfermarkt
   require 'httparty'
